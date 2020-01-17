@@ -1,0 +1,87 @@
+---
+title: "Rockets"
+author: "jdelariva2"
+date: "1/15/2020"
+output: html_document
+---
+#Rocket Launches
+Rocket launch data from 1957 - 2018. Data includes information on time, rocket variant, mission, responsible agency, and category of agency.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+## R Markdown
+library(tidyverse)
+library(data.table)
+library(sf)
+library(mapview)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+theme_set(theme_light())
+url <- 'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-15/launches.csv';
+launches <- read.csv(url);
+
+```
+
+
+
+```{r}
+head(launches);
+unique(launches$agency_type);
+
+#Launches by year
+launches %>%
+  count(launch_year, sort=TRUE) %>%
+  ggplot(aes(x=launch_year,y=n))+ geom_point()
+
+
+```
+The launch of man's preliminary voyages into space and the satellites that soon followed can be seen in the early days of the Cold War. Lets take a closer look at the agency type to determine whose launches these are.
+```{r}
+#Launches by year by agency
+launches %>%
+  count(launch_year,agency_type, sort=TRUE) %>%
+  ggplot(aes(x=launch_year,y=n,colour = factor(agency_type))) +
+  geom_line(size=2) +
+  labs(x='Launch Year',
+       y='Rocket Launches per Year',
+       title = 'Rocket launches per year by agency type')
+```
+We see that before the 90's there were no private launches. I'm curious to see what countries have been launching the most rockets though, I expect to see the state line split in half and many other countries climbing higher later. 
+```{r}
+library(countrycode)
+
+launches_processed <- launches %>%
+  filter(launch_date <= Sys.Date()) %>%
+  mutate(state_code_cleaned = fct_collapse(
+    state_code,
+    "RU" = c("SU", "RU"),
+    "FR" = "F",
+    "JP" = "J",
+    "IT" = "I"
+  )) %>%
+  mutate(state_name = countrycode(state_code_cleaned, "iso2c", "country.name"),
+         state_name = fct_lump(state_name, 6)) %>%
+  replace_na(list(state_name = "Other"))
+```
+
+
+```{r}
+launches_processed %>%
+  count(launch_year, state_name) %>%
+  mutate(state_name = fct_reorder(state_name, -n, sum)) %>%
+  ggplot(aes(launch_year, n, color = state_name)) +
+  geom_line() +
+  labs(x = "Time",
+       y = "Launches per year",
+       color = "Responsible state",
+       title = "The Space Race",
+       subtitle = "Combines Soviet Union (pre-1990) with Russia")
+
+```
+The destruction of the Berlin Wall in 1989 is considered the earliest signs of the end of the Cold War. This ideological decades-long struggle produced what would be known as The Space Race, where the two countries would pour significant resources and focus into acheiving space dominance. 
+
+I'm fascinated by the big white space between the US and Russian launches (In some cases USSR were launching a rocket a week). After the milestone accomplishments acheived in the 60s and early 70s, NASA shifted its focus to the ground for extensive testing of their new rockets and great leaps in many fields of planetary sciences.
+
+
+
+
